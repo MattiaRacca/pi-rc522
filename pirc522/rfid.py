@@ -111,16 +111,12 @@ class RFID(object):
         self.set_antenna(True)
 
     def sleep_mode(self):
-        print('Before sleep {}'.format(GPIO.input(self.pin_rst)))
         GPIO.output(self.pin_rst, 0)
-        print('After sleep {}'.format(GPIO.input(self.pin_rst)))
 
     def reset_sensor(self):
         if GPIO.input(self.pin_rst):
-            print('First I sleep for 2 seconds')
             self.sleep_mode()
             time.sleep(2)
-
         GPIO.output(self.pin_rst, 1)
 
     def spi_transfer(self, data):
