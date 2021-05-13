@@ -1,4 +1,5 @@
 import threading
+import time
 
 RASPBERRY = object()
 BEAGLEBONE = object()
@@ -20,6 +21,7 @@ except ImportError:
     def_pin_rst = "P9_23"
     def_pin_irq = "P9_15"
     def_pin_mode = None
+
 
 class RFID(object):
     pin_rst = 22
@@ -55,11 +57,11 @@ class RFID(object):
 
     antenna_gain = 0x04
 
-#antenna_gain
+# antenna_gain
 #  defines the receiver's signal voltage gain factor:
 #  000 18 dB HEX = 0x00
 #  001 23 dB HEX = 0x01
-#  010 18 dB HEX = 0x02  
+#  010 18 dB HEX = 0x02
 #  011 23 dB HEX = 0x03
 #  100 33 dB HEX = 0x04
 #  101 38 dB HEX = 0x05
@@ -71,7 +73,7 @@ class RFID(object):
     irq = threading.Event()
 
     def __init__(self, bus=0, device=0, speed=1000000, pin_rst=def_pin_rst,
-            pin_ce=0, pin_irq=def_pin_irq, pin_mode = def_pin_mode):
+                 pin_ce=0, pin_irq=def_pin_irq, pin_mode=def_pin_mode):
         self.pin_rst = pin_rst
         self.pin_ce = pin_ce
         self.pin_irq = pin_irq
@@ -91,7 +93,7 @@ class RFID(object):
             GPIO.output(pin_rst, 1)
         GPIO.setup(pin_irq, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.add_event_detect(pin_irq, GPIO.FALLING,
-                callback=self.irq_callback)
+                              callback=self.irq_callback)
         if pin_ce != 0:
             GPIO.setup(pin_ce, GPIO.OUT)
             GPIO.output(pin_ce, 1)
@@ -105,8 +107,21 @@ class RFID(object):
         self.dev_write(0x2C, 0)
         self.dev_write(0x15, 0x40)
         self.dev_write(0x11, 0x3D)
-        self.dev_write(0x26, (self.antenna_gain<<4))
+        self.dev_write(0x26, (self.antenna_gain << 4))
         self.set_antenna(True)
+
+    def sleep_mode(self):
+        print('Before sleep {}'.format(GPIO.input(self.pin_rst)))
+        GPIO.output(self.pin_rst, 0)
+        print('After sleep {}'.format(GPIO.input(self.pin_rst)))
+
+    def reset_sensor(self):
+        if GPIO.input(self.pin_rst):
+            print('First I sleep for 2 seconds')
+            self.sleep_mode()
+            time.sleep(2)
+
+        GPIO.output(self.pin_rst, 1)
 
     def spi_transfer(self, data):
         if self.pin_ce != 0:
@@ -222,7 +237,8 @@ class RFID(object):
         back_bits = 0
 
         self.dev_write(0x0D, 0x07)
-        (error, back_data, back_bits) = self.card_write(self.mode_transrec, [req_mode, ])
+        (error, back_data, back_bits) = self.card_write(
+            self.mode_transrec, [req_mode, ])
 
         if error or (back_bits != 0x10):
             return (True, None)
@@ -243,7 +259,8 @@ class RFID(object):
         serial_number.append(self.act_anticl)
         serial_number.append(0x20)
 
-        (error, back_data, back_bits) = self.card_write(self.mode_transrec, serial_number)
+        (error, back_data, back_bits) = self.card_write(
+            self.mode_transrec, serial_number)
         if not error:
             if len(back_data) == 5:
                 for i in range(4):
@@ -389,7 +406,8 @@ class RFID(object):
             crc = self.calculate_crc(buf_w)
             buf_w.append(crc[0])
             buf_w.append(crc[1])
-            (error, back_data, back_length) = self.card_write(self.mode_transrec, buf_w)
+            (error, back_data, back_length) = self.card_write(
+                self.mode_transrec, buf_w)
             if not(back_length == 4) or not((back_data[0] & 0x0F) == 0x0A):
                 error = True
 
@@ -408,7 +426,7 @@ class RFID(object):
         waiting = True
         while waiting:
             self.init()
-            #self.irq.clear()
+            # self.irq.clear()
             self.dev_write(0x04, 0x00)
             self.dev_write(0x02, 0xA0)
 
